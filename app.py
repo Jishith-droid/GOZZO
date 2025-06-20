@@ -150,6 +150,35 @@ def send_email():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Run the Flask app
+# --- Health Check Routes ---
+
+@app.route('/health/order', methods=['GET'])
+def health_order():
+    try:
+        client.order.all({'count': 1})
+        return jsonify({"status": "healthy", "message": "Order service reachable"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+@app.route('/health/payment', methods=['GET'])
+def health_payment():
+    try:
+        client.payment.all({'count': 1})
+        return jsonify({"status": "healthy", "message": "Payment service reachable"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+@app.route('/health/email', methods=['GET'])
+def health_email():
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASSWORD)
+        server.quit()
+        return jsonify({"status": "healthy", "message": "Email service reachable"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+# --- Flask Runner ---
 if __name__ == '__main__':
     app.run(debug=True)
