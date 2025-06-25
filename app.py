@@ -4,6 +4,7 @@ import uuid
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+import bleach
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -218,9 +219,13 @@ def send_admin_email():
             if not info_content:
                 return jsonify({"error": "Content required for info type"}), 400
             subject = f"Order Update - {order_id}"
+            # Sanitize content to prevent scripts/XSS
+            allowed_tags = ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a']
+            allowed_attrs = {'a': ['href', 'title']}
+            safe_content = bleach.clean(info_content, tags=allowed_tags, attributes=allowed_attrs, strip=True)
             message_body = f"""
             <p>Dear <strong>{customer_name}</strong>,</p>
-            <p>{info_content}</p>
+            {safe_content}
             <p>Order ID: {order_id}<br>
             Order Date: {order_date}<br>
             Total Amount: ₹{total_amount}</p>
