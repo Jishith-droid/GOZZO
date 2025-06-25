@@ -179,6 +179,86 @@ def health_email():
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
+@app.route('/send-admin-email', methods=['POST'])
+def send_admin_email():
+    try:
+        data = request.json
+        email_type = data.get('type')
+        customer_email = data.get('email')
+        customer_name = data.get('customer_name')
+        order_id = data.get('order_id')
+        order_date = data.get('order_date')
+        total_amount = data.get('total_amount')
+        timestamp = data.get('timestamp')  # Used for dispatch/deliver
+        info_content = data.get('content')  # Used for info type
+
+        if not all([email_type, customer_email, customer_name, order_id, order_date, total_amount]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # --- Compose Email Based on Type ---
+        if email_type == 'dispatch':
+            subject = f"Order Dispatched - {order_id}"
+            message_body = f"""
+            <p>Dear <strong>{customer_name}</strong>,</p>
+            <p>Your order <strong>{order_id}</strong> has been <strong>dispatched</strong> on <strong>{timestamp}</strong>.</p>
+            <p>Order Date: {order_date}<br>
+            Total Amount: ₹{total_amount}</p>
+            <p>You will receive another email once your order is delivered.</p>
+            """
+        elif email_type == 'deliver':
+            subject = f"Order Delivered - {order_id}"
+            message_body = f"""
+            <p>Dear <strong>{customer_name}</strong>,</p>
+            <p>Your order <strong>{order_id}</strong> has been <strong>delivered</strong> on <strong>{timestamp}</strong>.</p>
+            <p>Thank you for shopping with <strong>Pot It Up</strong>. We hope you loved it!</p>
+            <p>Order Date: {order_date}<br>
+            Total Amount: ₹{total_amount}</p>
+            """
+        elif email_type == 'info':
+            if not info_content:
+                return jsonify({"error": "Content required for info type"}), 400
+            subject = f"Order Update - {order_id}"
+            message_body = f"""
+            <p>Dear <strong>{customer_name}</strong>,</p>
+            <p>{info_content}</p>
+            <p>Order ID: {order_id}<br>
+            Order Date: {order_date}<br>
+            Total Amount: ₹{total_amount}</p>
+            """
+        else:
+            return jsonify({"error": "Invalid email type"}), 400
+
+        # Full HTML content wrapper
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            {message_body}
+            <hr>
+            <p>For any questions, contact us at <a href="mailto:potitupspprt@gmail.com">potitupspprt@gmail.com</a></p>
+            <p><strong>Pot It Up Team</strong></p>
+        </body>
+        </html>
+        """
+
+        # MIME structure
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_USER
+        msg['To'] = customer_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(html_content, 'html'))
+
+        # Send email via SMTP
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASSWORD)
+        server.sendmail(GMAIL_USER, customer_email, msg.as_string())
+        server.quit()
+
+        return jsonify({"status": "success", "message": f"{email_type.capitalize()} email sent successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- Flask Runner ---
 if __name__ == '__main__':
     app.run(debug=True)
