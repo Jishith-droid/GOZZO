@@ -260,6 +260,55 @@ def send_admin_email():
         server.quit()
 
         return jsonify({"status": "success", "message": f"{email_type.capitalize()} email sent successfully"}), 200
+        
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# Route to send custom info email directly from admin panel
+@app.route('/send-user-email', methods=['POST'])
+def send_user_email():
+    try:
+        data = request.json
+        customer_email = data.get('email')
+        customer_name = data.get('customer_name')
+        user_uid = data.get('user_uid')
+        content = data.get('content')
+
+        if not all([customer_email, customer_name, user_uid, content]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Sanitize HTML to prevent XSS
+        allowed_tags = ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a']
+        allowed_attrs = {'a': ['href', 'title']}
+        safe_content = bleach.clean(content, tags=allowed_tags, attributes=allowed_attrs, strip=True)
+
+        # Compose email
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <p>Dear <strong>{customer_name}</strong>,</p>
+            {safe_content}
+            <hr>
+            <p><small>User ID: <code>{user_uid}</code></small></p>
+            <p>For any questions, contact us at <a href="mailto:potitupspprt@gmail.com">potitupspprt@gmail.com</a></p>
+            <p><strong>Pot It Up Team</strong></p>
+        </body>
+        </html>
+        """
+
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_USER
+        msg['To'] = customer_email
+        msg['Subject'] = "Update from Pot It Up"
+        msg.attach(MIMEText(html_body, 'html'))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASSWORD)
+        server.sendmail(GMAIL_USER, customer_email, msg.as_string())
+        server.quit()
+
+        return jsonify({"status": "success", "message": "Custom email sent successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
