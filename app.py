@@ -14,14 +14,16 @@ load_dotenv()
 
 app = Flask(__name__)  # Initialize Flask app with the correct name
 
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://gozzo-store.web.app",
-            "https://gozzo-store.firebaseapp.com"
-        ]
-    }
-})
+# CORS(app, resources={
+  #  r"/*": {
+     #   "origins": [
+         #   "https://gozzo-store.web.app",
+          #  "https://gozzo-store.firebaseapp.com"
+       # ]
+#    }
+#})
+
+CORS(app)
 
 # Access environment variables
 api_key = os.getenv('RAZORPAY_API_KEY')
