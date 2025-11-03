@@ -13,7 +13,15 @@ from email.mime.text import MIMEText
 load_dotenv()
 
 app = Flask(__name__)  # Initialize Flask app with the correct name
-CORS(app)  # Enable CORS for all routes
+
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://gozzo-store.web.app",
+            "https://gozzo-store.firebaseapp.com"
+        ]
+    }
+})
 
 # Access environment variables
 api_key = os.getenv('RAZORPAY_API_KEY')
@@ -56,29 +64,33 @@ def create_order():
         return jsonify({'error': str(e)}), 500
 
 # Route to verify the payment status
+
 @app.route('/verify-payment', methods=['POST'])
 def verify_payment():
-    payment_id = request.json.get('payment_id')
-    
-    if not payment_id:
-        return jsonify({'error': 'Payment ID is required'}), 400
-
     try:
-        # Fetch the payment details from Razorpay using the payment ID
-        payment = client.payment.fetch(payment_id)
-        
-        # Check if the payment status is 'captured' (which means successful)
-        if payment['status'] == 'captured':
-            # Payment was successful
-            # You can now update your order status in the database
-            return jsonify({"success": True, "message": "Payment verified successfully!"})
-        else:
-            # Payment failed
-            return jsonify({"success": False, "message": "Payment failed!"})
+        data = request.get_json()
+        order_id = data.get('razorpay_order_id')
+        payment_id = data.get('razorpay_payment_id')
+        signature = data.get('razorpay_signature')
+
+        # Check if all values are provided
+        if not all([order_id, payment_id, signature]):
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        # Razorpay built-in signature verification
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
+        })
+
+        return jsonify({"success": True, "message": "Payment verified successfully!"}), 200
+
+    except razorpay.errors.SignatureVerificationError:
+        return jsonify({"success": False, "message": "Payment verification failed!"}), 400
 
     except Exception as e:
-        # Handle any errors (e.g., invalid payment ID or API error)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 # Route to send email via Gmail SMTP
 @app.route('/send-email', methods=['POST'])
@@ -136,7 +148,7 @@ def send_email():
         msg.attach(MIMEText(html_content, 'html'))
 
         # Connect to Gmail's SMTP server
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
         server.starttls()  # Secure the connection
         server.login(GMAIL_USER, GMAIL_PASSWORD)
 
@@ -315,4 +327,4 @@ def send_user_email():
 
 # --- Flask Runner ---
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
