@@ -68,7 +68,7 @@ def verify_payment():
         return jsonify({'error': 'Payment ID is required'}), 400
 
     try:
-        payment = client.payment.fetchpayment_id)
+        payment = client.payment.fetch(payment_id)
         if payment['status'] == 'captured':
             return jsonify({"success": True, "message": "Payment verified successfully!"})
         else:
