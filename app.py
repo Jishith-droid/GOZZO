@@ -89,12 +89,8 @@ def send_email():
         expiry_date = data.get('expiry_date')
         total_amount = data.get('total_amount')
 
-        # Validate all required fields
         if not all([customer_email, customer_name, order_id, order_date, expiry_date, total_amount]):
-            return jsonify({
-                "status": "error",
-                "message": "Missing required fields"
-            }), 400
+            return jsonify({"error": "Missing required fields"}), 400
 
         html_content = f"""
         <html>
@@ -137,16 +133,10 @@ def send_email():
             server.login(GMAIL_USER, GMAIL_PASSWORD)
             server.sendmail(GMAIL_USER, customer_email, msg.as_string())
 
-        return jsonify({
-            "status": "success",
-            "message": "Email sent successfully"
-        }), 200
+        return jsonify({"status": "success", "message": "Email sent successfully"}), 200
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
 
 # ---------- HEALTH CHECK ROUTES ----------
