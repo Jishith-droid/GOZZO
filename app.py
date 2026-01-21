@@ -27,14 +27,15 @@ def handle_preflight():
         )
         return response, 200
 
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://gozzo-store.web.app",
-            "https://gozzo-store.firebaseapp.com"
-        ]
-    }
-})
+## CORS(app, resources={
+##    r"/*": {
+##        "origins": [
+##            "https://gozzo-store.web.app",
+##            "https://gozzo-store.firebaseapp.com"
+##        ]
+##    }
+##})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 api_key = os.getenv("RAZORPAY_API_KEY")
 api_secret = os.getenv("RAZORPAY_API_SECRET")
