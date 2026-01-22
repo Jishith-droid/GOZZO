@@ -37,6 +37,103 @@ def handle_preflight():
 ##})
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_OWNER = "Jishith-droid"
+GITHUB_REPO = "GOZZO-uploads"
+GITHUB_BRANCH = "main"
+GITHUB_DIR = "uploads"
+
+MAX_FILES = 5
+MAX_SIZE_MB = 5
+ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
+
+if not GITHUB_TOKEN:
+    raise RuntimeError("GITHUB_TOKEN not set")
+# -------------------------------------
+@app.route("/save-image", methods=["POST"])
+def save_image():
+    files = request.files.getlist("images")
+
+    if not files:
+        return jsonify(message="No images provided"), 400
+
+    if len(files) > MAX_FILES:
+        return jsonify(message=f"Maximum {MAX_FILES} images allowed"), 400
+
+    uploaded_urls = []
+
+    for file in files:
+        if not file or file.filename == "":
+            return jsonify(message="Invalid file detected"), 400
+
+        # ---------- SIZE CHECK ----------
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+
+        if size > MAX_SIZE_MB * 1024 * 1024:
+            return jsonify(message="Image exceeds size limit"), 400
+
+        # ---------- MIME CHECK ----------
+        header = file.read(2048)
+        file.seek(0)
+        mime = magic.from_buffer(header, mime=True)
+
+        if mime not in ALLOWED_MIME:
+            return jsonify(message=f"Unsupported image type: {mime}"), 400
+
+        # ---------- PREPARE FILE ----------
+        filename = secure_filename(file.filename)
+        ext = os.path.splitext(filename)[1].lower()
+
+        if not ext:
+            return jsonify(message="Missing file extension"), 400
+
+        final_name = f"{uuid.uuid4().hex}{ext}"
+        content_b64 = base64.b64encode(file.read()).decode("utf-8")
+
+        github_path = f"{GITHUB_DIR}/{final_name}"
+
+        # ---------- GITHUB API ----------
+        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{github_path}"
+
+        payload = {
+            "message": f"Upload image {final_name}",
+            "content": content_b64,
+            "branch": GITHUB_BRANCH
+        }
+
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+
+        r = requests.put(url, json=payload, headers=headers)
+
+        if r.status_code not in (200, 201):
+            return jsonify(
+                message="GitHub upload failed",
+                github_status=r.status_code,
+                github_error=r.json()
+            ), 502
+
+        raw_url = (
+            f"https://raw.githubusercontent.com/"
+            f"{GITHUB_OWNER}/{GITHUB_REPO}/"
+            f"{GITHUB_BRANCH}/{github_path}"
+        )
+
+        uploaded_urls.append(raw_url)
+
+    return jsonify(
+        message="Upload successful",
+        urls=uploaded_urls
+    ), 201
+
+@app.route("/wake", methods=["GET"])
+def wake():
+    return "OK", 200
+    
 api_key = os.getenv("RAZORPAY_API_KEY")
 api_secret = os.getenv("RAZORPAY_API_SECRET")
 
