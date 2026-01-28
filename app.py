@@ -32,15 +32,14 @@ def handle_preflight():
         )
         return response, 200
 
-## CORS(app, resources={
-##    r"/*": {
-##        "origins": [
-##            "https://gozzo-store.web.app",
-##            "https://gozzo-store.firebaseapp.com"
-##        ]
-##    }
-##})
-CORS(app, resources={r"/*": {"origins": "*"}})
+ CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://gozzo-store.web.app",
+            "https://gozzo-store.firebaseapp.com"
+        ]
+    }
+})
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_OWNER = "Jishith-droid"
